@@ -1,0 +1,104 @@
+<html>
+	<head>
+		<title>ShittyGame</title>
+		<style>
+		html, body{
+			margin:0px;
+			padding:0px;
+		}
+		#c{
+			border:1px solid #000000;
+		}
+		</style>
+	</head>
+	<body>
+		<canvas id="c" width = "1000" height = "500">Your browser's a piece of shit. Get a better one!</canvas>
+		<script src = "https://cdn.firebase.com/js/client/2.0.6/firebase.js"></script>
+		<script>
+
+		var fbref = new Firebase("https://jsgt.firebaseio.com/");
+
+		fbref.child("players").on("value", function(snapshot) {
+		pdata = snapshot.val();
+		console.log(pdata);
+	});
+
+		playerRef = fbref.child("players").push();
+		playerRef.onDisconnect().remove();
+		playerID = playerRef.key();
+		playerRef.child("x").set(200);
+		playerRef.child("y").set(200);
+
+		var canvas = document.querySelector('#c');		//get canvas
+
+		var ctx = canvas.getContext('2d');				//set drawing element
+
+		var px = 200;		//x-value of player
+		var py = 200;		//y-value of player
+
+			var key = {
+				left:false,
+				right:false,
+				jump:0,
+				}
+
+		function getplayers(snapshot)
+		{
+			console.log("testing");
+		}
+
+		window.onkeydown = function(e){
+		if(e.keyCode == 37){	//left arrow
+			key.left = true};
+		if(e.keyCode == 39){	//right arrow
+			key.right = true};
+		if(e.keyCode == 38){	//space
+			key.jump = 25};
+		}
+		window.onkeyup = function(e){
+		if(e.keyCode == 37){
+			key.left = false};
+		if(e.keyCode == 39){
+			key.right = false};
+		}
+
+		function moveplayer()
+		{
+			if(key.left){px-=5};
+			if(key.right){px+=5};
+			py-=key.jump;
+			key.jump = Math.min(key.jump-0.25,7.5)
+
+			if(py>canvas.height-20){key.jump = 0; py= canvas.height-20}
+			else if(py<0){key.jump = 0; py = 0}
+
+			if(px>canvas.width-10){px = canvas.width-5}
+			else if(px<0){px = 3}
+
+			playerRef.update({"x":px});
+			playerRef.update({"y":py});
+		}
+
+		function update()
+		{
+			window.requestAnimationFrame(update);
+
+			ctx.clearRect(0,0,canvas.width,canvas.height);
+
+			//get players' positions
+			for(var key in pdata)
+			{
+				ctx.beginPath();
+				ctx.lineWidth="6";
+				ctx.fillStyle = "#000000";
+				ctx.rect(pdata[key].x-5,pdata[key].y,10,20);
+				ctx.fill();
+			}
+			moveplayer();
+		}
+
+		update();
+
+		</script>
+	</body>
+</html>
