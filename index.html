@@ -1,26 +1,29 @@
 <html>
 	<head>
-		<title>Jumpy</title>
+		<title>Jumpy v0.2</title>
 		<style>
 		html, body{
 			margin:0px;
 			padding:0px;
 		}
 		#c{
-			border:1px solid #000000;
+			position:absolute;
+			max-width:100%;
+			max-height:100%;
 		}
 		</style>
 	</head>
 	<body>
-		<canvas id="c" width = "1000" height = "500">Your browser's a piece of shit. Get a better one!</canvas>
+		<canvas id="c" width = "1000" height = "500" style="background:center no-repeat url(...);background-size:contain;width:...;height:...">Your browser's horrible. Get a better one!</canvas>
 		<script src = "https://cdn.firebase.com/js/client/2.0.6/firebase.js"></script>
 		<script>
 
 		var fbref = new Firebase("https://jumpy.firebaseio.com/");
 
-		fbref.child("players").on("value", function(snapshot) {
-		pdata = snapshot.val();
-		console.log(pdata);
+		fbref.on("value", function(snapshot) {
+		pdata = snapshot.child("players").val();
+		terrain = snapshot.child("terrain").val();
+		//console.log(pdata);
 	});
 
 		playerRef = fbref.child("players").push();
@@ -28,6 +31,8 @@
 		playerID = playerRef.key();
 		playerRef.child("x").set(200);
 		playerRef.child("y").set(200);
+		playerRef.child("vx").set(0);
+		playerRef.child("vy").set(0);
 
 		var canvas = document.querySelector('#c');		//get canvas
 
@@ -35,25 +40,25 @@
 
 		var px = 200;		//x-value of player
 		var py = 200;		//y-value of player
+		var pvx = 0;		//player's x-velocity
+		var pvy = 0;		//player's y-velocity
+		var onGnd = false	//if player is on the ground
+		var Glox = 0;		//global x-offset
+		var Gloy = 0;		//global y-offset
 
-			var key = {
-				left:false,
-				right:false,
-				jump:0,
-				}
-
-		function getplayers(snapshot)
-		{
-			console.log("testing");
-		}
+		var key = {
+			left:false,
+			right:false,
+			up:0,
+			}
 
 		window.onkeydown = function(e){
 		if(e.keyCode == 37){	//left arrow
 			key.left = true};
 		if(e.keyCode == 39){	//right arrow
 			key.right = true};
-		if(e.keyCode == 38){	//space
-			key.jump = 25};
+		if(e.keyCode == 38 && key.up<=0){	//up arrow
+			key.up = 25};
 		}
 		window.onkeyup = function(e){
 		if(e.keyCode == 37){
@@ -62,41 +67,110 @@
 			key.right = false};
 		}
 
+		function maketerrain()
+		{
+			var detail = 25;	//number of lines used to cover the floor
+			terrain = []		//list of all verticies of terrain
+
+			for(var i=0; i<detail+1; i+=1){
+				terrain.push([(canvas.width/detail)*i, Math.random()*(canvas.height/5)+((canvas.height*4)/5)]);
+			};
+
+			console.log(terrain);
+			for(item in terrain){console.log(terrain[item])};
+
+			fbref.child("terrain").set(terrain);
+		}
+
 		function moveplayer()
 		{
-			if(key.left){px-=5};
-			if(key.right){px+=5};
-			py-=key.jump;
-			key.jump = Math.min(key.jump-0.25,7.5)
+			//set velocities
+			if(key.left){pvx = Math.max(pvx-1, -5)}
+			else if(key.right){pvx = Math.min(pvx+1, 5)}
+			else{pvx-=Math.sign(pvx)/2};
+			pvy = -key.up;
+			key.up = Math.min(key.up-0.25,7.5);
 
-			if(py>canvas.height-20){key.jump = 0; py= canvas.height-20}
-			else if(py<0){key.jump = 0; py = 0}
+			//collide with terrain
+			tcol = onLine(px,py+20)
+			if(tcol[0])
+			{
+				if(pvy>0){pvy=0;key.up=0}
+				py = tcol[1]-20
+				onGnd = true;
+			}
+			else{onGnd = false};
 
-			if(px>canvas.width-10){px = canvas.width-5}
-			else if(px<0){px = 3}
+			//change velocity to position
+			px += pvx;
+			py += pvy;
 
-			playerRef.update({"x":px});
-			playerRef.update({"y":py});
+			//set bounds
+			if(py>canvas.height-20){key.up = 0; py= canvas.height-20}
+			else if(py<0){key.up = 0; py = 0};
+			if(px>canvas.width-5){px = canvas.width-5; pvx = -pvx}
+			else if(px<0){px = 5; pvx = -pvx};
+
+			//send to firebase
+			playerRef.update({"x":Math.floor(px)});
+			playerRef.update({"y":Math.floor(py)});
+			playerRef.update({"vx":Math.floor(pvx)});
+			playerRef.update({"vy":Math.floor(pvy)});
 		}
+
+		function onLine(x,y)	//test for collision with x,y in terrain
+		{
+			for(var i=0; i<terrain.length-1; i+=1)
+			{
+				if(terrain[i][0]<=x && terrain[i+1][0]>x)
+				{
+					//liney = ((by-ay)/(bx-ax))(x-ax)+ax		//equation for line, without substitution
+					liney = (((terrain[i+1][1]-terrain[i][1])/(terrain[i+1][0]-terrain[i][0]))*(x-terrain[i][0]))+terrain[i][1];
+					//console.log(y,liney);
+					if(y>=liney){return [true,liney]}
+					else{return false};
+				};
+			};
+			return false;
+		};
 
 		function update()
 		{
 			window.requestAnimationFrame(update);
 
+			//clear screen
 			ctx.clearRect(0,0,canvas.width,canvas.height);
+			ctx.beginPath();
+			ctx.lineWidth="6";
+			ctx.fillStyle = "#000000";
+			ctx.rect(0,0,canvas.width,canvas.height);
+			ctx.fill();
 
-			//get players' positions
+
+			//draw players
 			for(var key in pdata)
 			{
 				ctx.beginPath();
 				ctx.lineWidth="6";
-				ctx.fillStyle = "#000000";
+				ctx.fillStyle = "#ffffff";
 				ctx.rect(pdata[key].x-5,pdata[key].y,10,20);
 				ctx.fill();
 			}
+
+			//draw terrain 
+			ctx.beginPath();
+			ctx.strokeStyle = "#ffffff";
+			for(var i=0; i<terrain.length; i+=1)
+			{
+				ctx.lineTo(terrain[i][0],terrain[i][1]);
+			}
+			ctx.lineWidth = 1;
+			ctx.stroke();
+
+
 			moveplayer();
 		}
-
+		maketerrain();
 		update();
 
 		</script>
