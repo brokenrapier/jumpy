@@ -18,7 +18,7 @@
 		<script src = "https://cdn.firebase.com/js/client/2.0.6/firebase.js"></script>
 		<script>
 
-		var fbref = new Firebase("https://jsgt.firebaseio.com/");
+		var fbref = new Firebase("https://jumpy.firebaseio.com/");
 
 		fbref.on("value", function(snapshot) {
 		pdata = snapshot.child("players").val();
