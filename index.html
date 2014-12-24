@@ -69,8 +69,10 @@
 
 		function maketerrain()
 		{
+			if(pdata.length<=1)
+			{
 			var detail = 25;	//number of lines used to cover the floor
-			terrain = []		//list of all verticies of terrain
+			terrain = [];		//list of all verticies of terrain
 
 			for(var i=0; i<detail+1; i+=1){
 				terrain.push([(canvas.width/detail)*i, Math.random()*(canvas.height/5)+((canvas.height*4)/5)]);
@@ -80,6 +82,9 @@
 			for(item in terrain){console.log(terrain[item])};
 
 			fbref.child("terrain").set(terrain);
+		
+			
+			};
 		}
 
 		function moveplayer()
@@ -119,7 +124,7 @@
 		}
 
 		function onLine(x,y)	//test for collision with x,y in terrain
-		{
+		{	
 			for(var i=0; i<terrain.length-1; i+=1)
 			{
 				if(terrain[i][0]<=x && terrain[i+1][0]>x)
