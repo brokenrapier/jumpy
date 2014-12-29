@@ -1,6 +1,6 @@
 <html>
 	<head>
-		<title>Jumpy v0.2</title>
+		<title>Jumpy v0.3</title>
 		<style>
 		html, body{
 			margin:0px;
@@ -14,16 +14,18 @@
 		</style>
 	</head>
 	<body>
-		<canvas id="c" width = "1000" height = "500" style="background:center no-repeat url(...);background-size:contain;width:...;height:...">Your browser's horrible. Get a better one!</canvas>
+		<canvas id="c" width = "1000" height = "500" oncontextmenu="return false;">Your browser's horrible. Get a better one!</canvas>
 		<script src = "https://cdn.firebase.com/js/client/2.0.6/firebase.js"></script>
 		<script>
 
-		var fbref = new Firebase("https://jumpy.firebaseio.com/");
+		var fbref = new Firebase("https://jsgt.firebaseio.com/");
 
 		fbref.on("value", function(snapshot) {
 		pdata = snapshot.child("players").val();
-		terrain = snapshot.child("terrain").val();
-		//console.log(pdata);
+		terrainR = snapshot.child("terrain").child("terrainR").val();
+		terrainL = snapshot.child("terrain").child("terrainL").val();
+
+		console.log(pdata);
 	});
 
 		playerRef = fbref.child("players").push();
@@ -43,8 +45,9 @@
 		var pvx = 0;		//player's x-velocity
 		var pvy = 0;		//player's y-velocity
 		var onGnd = false	//if player is on the ground
-		var Glox = 0;		//global x-offset
-		var Gloy = 0;		//global y-offset
+		var canJump = 2;	//if the player can jump
+		var glox = canvas.width/2;		//global x-offset
+		var gloy = canvas.height/2;		//global y-offset
 
 		var key = {
 			left:false,
@@ -57,8 +60,9 @@
 			key.left = true};
 		if(e.keyCode == 39){	//right arrow
 			key.right = true};
-		if(e.keyCode == 38 && key.up<=0){	//up arrow
-			key.up = 25};
+		if(e.keyCode == 38 && key.up<=0 && canJump>=2){	//up arrow
+			key.up = 25;
+			canJump = 0};
 		}
 		window.onkeyup = function(e){
 		if(e.keyCode == 37){
@@ -69,17 +73,34 @@
 
 		function maketerrain()
 		{
-			//var detail = 25;	//number of lines used to cover the floor
-			//terrain = []		//list of all verticies of terrain
+			detail = 25;	//number of lines used to cover the floor
+			terrainR = []		//list of all verticies right of 0
+			terrainL = []		//list of all verticies left of 0
 
-			//for(var i=0; i<detail+1; i+=1){
-			//	terrain.push([(canvas.width/detail)*i, Math.random()*(canvas.height/5)+((canvas.height*4)/5)]);
-			//};
+			for(var i=0; i<detail+1; i+=1){
+				terrainR.push([(canvas.width/detail)*i, Math.random()*(canvas.height/5)+((canvas.height*4)/5)]);
+				terrainL.push([(canvas.width/detail)*-i, Math.random()*(canvas.height/5)+((canvas.height*4)/5)]);
+			};
 
-			//console.log(terrain);
-			//for(item in terrain){console.log(terrain[item])};
+			terrainL[0] = terrainR[0]
 
-			//fbref.child("terrain").set(terrain)
+			fbref.child("terrain").child("terrainR").set(terrainR);
+			fbref.child("terrain").child("terrainL").set(terrainL);
+
+		}
+
+		function newTerrain()
+		{
+			if(px>terrainR[terrainR.length-1][0])
+			{
+				terrainR.push([(canvas.width/detail)*(terrainR.length+1), Math.random()*(canvas.height/5)+((canvas.height*4)/5)]);
+				fbref.child("terrain").child("terrainR").set(terrainR);
+			}
+			if(px<terrainL[terrainL.length-1][0])
+			{
+				terrainL.push([(canvas.width/detail)*-(terrainL.length+1), Math.random()*(canvas.height/5)+((canvas.height*4)/5)]);
+				fbref.child("terrain").child("terrainL").set(terrainL);
+			}
 		}
 
 		function moveplayer()
@@ -98,6 +119,7 @@
 				if(pvy>0){pvy=0;key.up=0}
 				py = tcol[1]-20
 				onGnd = true;
+				canJump += 1;
 			}
 			else{onGnd = false};
 
@@ -108,8 +130,9 @@
 			//set bounds
 			if(py>canvas.height-20){key.up = 0; py= canvas.height-20}
 			else if(py<0){key.up = 0; py = 0};
-			if(px>canvas.width-5){px = canvas.width-5; pvx = -pvx}
-			else if(px<0){px = 5; pvx = -pvx};
+
+			glox = px-canvas.width/2;
+			gloy = py-canvas.height/2;
 
 			//send to firebase
 			playerRef.update({"x":Math.floor(px)});
@@ -120,13 +143,23 @@
 
 		function onLine(x,y)	//test for collision with x,y in terrain
 		{
-			for(var i=0; i<terrain.length-1; i+=1)
+			for(var i=0; i<terrainR.length-1; i+=1)
 			{
-				if(terrain[i][0]<=x && terrain[i+1][0]>x)
+				if(terrainR[i][0]<=x && terrainR[i+1][0]>x)
 				{
 					//liney = ((by-ay)/(bx-ax))(x-ax)+ax		//equation for line, without substitution
-					liney = (((terrain[i+1][1]-terrain[i][1])/(terrain[i+1][0]-terrain[i][0]))*(x-terrain[i][0]))+terrain[i][1];
+					liney = (((terrainR[i+1][1]-terrainR[i][1])/(terrainR[i+1][0]-terrainR[i][0]))*(x-terrainR[i][0]))+terrainR[i][1];
 					//console.log(y,liney);
+					if(y>=liney){return [true,liney]}
+					else{return false};
+				};
+			};
+			for(var i=0; i<terrainL.length-1; i+=1)
+			{
+				if(terrainL[i][0]>=x && terrainL[i+1][0]<x)
+				{
+					//liney = ((by-ay)/(bx-ax))(x-ax)+ax		//equation for line, without substitution
+					liney = (((terrainL[i+1][1]-terrainL[i][1])/(terrainL[i+1][0]-terrainL[i][0]))*(x-terrainL[i][0]))+terrainL[i][1];
 					if(y>=liney){return [true,liney]}
 					else{return false};
 				};
@@ -146,28 +179,44 @@
 			ctx.rect(0,0,canvas.width,canvas.height);
 			ctx.fill();
 
-
-			//draw players
-			for(var key in pdata)
+			//draw other players
+			for(var key in (pdata))
 			{
 				ctx.beginPath();
 				ctx.lineWidth="6";
 				ctx.fillStyle = "#ffffff";
-				ctx.rect(pdata[key].x-5,pdata[key].y,10,20);
+				ctx.rect((pdata[key].x-5)-glox,(pdata[key].y)-gloy,10,20);
 				ctx.fill();
 			}
 
-			//draw terrain 
+			//draw you
+
+			ctx.beginPath();
+			ctx.lineWidth="6";
+			ctx.fillStyle = "#ffffff";
+			ctx.rect(canvas.width/2-5,canvas.height/2,10,20);
+			ctx.fill();
+
+			//draw terrainR
 			ctx.beginPath();
 			ctx.strokeStyle = "#ffffff";
-			for(var i=0; i<terrain.length; i+=1)
+			for(var i=0; i<terrainR.length; i+=1)
 			{
-				ctx.lineTo(terrain[i][0],terrain[i][1]);
+				ctx.lineTo(terrainR[i][0]-glox,terrainR[i][1]-gloy);
+			}
+			ctx.lineWidth = 1;
+			ctx.stroke();
+			//draw terrainL
+			ctx.beginPath();
+			ctx.strokeStyle = "#ffffff";
+			for(var i=0; i<terrainL.length; i+=1)
+			{
+				ctx.lineTo(terrainL[i][0]-glox,terrainL[i][1]-gloy);
 			}
 			ctx.lineWidth = 1;
 			ctx.stroke();
 
-
+			newTerrain();
 			moveplayer();
 		}
 		maketerrain();
