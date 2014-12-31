@@ -73,7 +73,7 @@
 
 		function maketerrain()
 		{
-			/*
+			
 			detail = 25;	//number of lines used to cover the floor
 			terrainR = []		//list of all verticies right of 0
 			terrainL = []		//list of all verticies left of 0
@@ -87,7 +87,7 @@
 
 			fbref.child("terrain").child("terrainR").set(terrainR);
 			fbref.child("terrain").child("terrainL").set(terrainL);
-			*/
+			
 		}
 
 		function newTerrain()
@@ -217,7 +217,6 @@
 			ctx.lineWidth = 1;
 			ctx.stroke();
 
-			newTerrain();
 			moveplayer();
 		}
 		maketerrain();
