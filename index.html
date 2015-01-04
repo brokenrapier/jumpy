@@ -1,6 +1,6 @@
 <html>
 	<head>
-		<title>Jumpy v0.4</title>
+		<title>Jumpy v0.4.1</title>
 		<style>
 		html, body{
 			margin:0px;
@@ -77,8 +77,8 @@
 			detail = 25;	//number of lines used to cover the floor
 			terrainR = []		//list of all verticies right of 0
 			terrainL = []		//list of all verticies left of 0
-
-			for(var i=0; i<detail+1; i+=1){
+			
+			for(var i=0; i<5; i+=1){
 				terrainR.push([(canvas.width/detail)*i, Math.random()*(canvas.height/5)+((canvas.height*4)/5)]);
 				terrainL.push([(canvas.width/detail)*-i, Math.random()*(canvas.height/5)+((canvas.height*4)/5)]);
 			};
